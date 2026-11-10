@@ -1,14 +1,14 @@
 package main
 
 import (
-	/* "encoding/xml"    */          // Importa XML apenas por enquanto; o sublinhado impede o uso direto do pacote.
+	"archive/zip"                    // Permite criar e manipular arquivos ZIP.
+	"encoding/xml"                   // Importa XML apenas por enquanto; o sublinhado impede o uso direto do pacote.
 	"fmt"                            // Permite formatar e imprimir mensagens no terminal.
 	"github.com/PuerkitoBio/goquery" // Permite pesquisar elementos dentro do HTML.
-	"log"                            // Permite registrar erros e encerrar o programa quando necessário.
+	"io"
+	"log" // Permite registrar erros e encerrar o programa quando necessário.
 	"net/http"
 	"os" // Permite fazer requisições HTTP para acessar a página do INPI.
-	"io"
-
 )
 
 type listXml struct { // Declara uma estrutura para representar dados do XML.
@@ -24,15 +24,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	
+	fmt.Printf("URL encontrada: %v\n", url)
 
-	err = baixarZip(url)
+	err = baixarZipConsultar(url)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-
-	fmt.Printf("URL encontrada: %v\n", url)
 
 } // Finaliza a função principal.
 
@@ -77,7 +74,7 @@ func getScrapeRevista() (string, error) { // Declara uma função para fazer o s
 
 } // Finaliza a função de scraping.
 
-func baixarZip(url string) error {
+func baixarZipConsultar(url string) error {
 
 	res, err := http.Get(url) // Envia uma requisição GET para a URL do arquivo ZIP.
 
@@ -87,19 +84,43 @@ func baixarZip(url string) error {
 	}
 
 	defer res.Body.Close() // Agenda o fechamento do conteúdo da resposta quando a função terminar.
-	
-	arquivo, err := os.Create("rpi.zip") // Cria um arquivo local para salvar o conteúdo do ZIP.
 
-	io.Copy( arquivo, res.Body)
+	arquivo, err := os.Create("rpi.zip") // Cria um arquivo local para salvar o conteúdo do ZIP.
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
+	io.Copy(arquivo, res.Body)
 
+	x, err := zip.OpenReader("rpi.zip")
 
-	fmt.Println("test", url)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	for _, f := range x.File {
+
+		fmt.Printf("Contents of %s:\n", f.Name)
+
+		rc, err := f.Open()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		xml.NewDecoder(rc).Decode(&listXml{})
+
+		fmt.Println(rc)
+	}
+
+	/* var consulta string
+
+	fmt.Println("Digite o número do processo que deseja consultar:")
+
+	fmt.Scanln(&consulta) */
 
 	return nil
 }
